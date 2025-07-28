@@ -1,0 +1,172 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: "-rabbitmq_prelaunch_initiation init_definitions"
+    volumes:
+      - ./rabbitMQ/definitions.json:/etc/rabbitmq/definitions.json
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # PostgreSQL для 1С
+  db_1c:
+    image: postgres:15-alpine
+    hostname: db_1c
+    environment:
+      POSTGRES_DB: onec_db
+      POSTGRES_USER: user1c # Corrected user for 1C service
+      POSTGRES_PASSWORD: password1c # Corrected password for 1C service
+    volumes:
+      - db_data_1c:/var/lib/postgresql/data # Corrected volume name
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user1c -d onec_db"] # Use the correct user for healthcheck
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # PostgreSQL для ДМС
+  db_dms:
+    image: postgres:15-alpine
+    hostname: db_dms
+    environment:
+      POSTGRES_DB: dms_db
+      POSTGRES_USER: userdms # Corrected user for DMS service
+      POSTGRES_PASSWORD: passworddms # Corrected password for DMS service
+    volumes:
+      - db_data_dms:/var/lib/postgresql/data # Corrected volume name
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U userdms -d dms_db"] # Use the correct user for healthcheck
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # PostgreSQL для СРМ
+  db_crm:
+    image: postgres:15-alpine
+    hostname: db_crm
+    environment:
+      POSTGRES_DB: crm_db
+      POSTGRES_USER: usercrm
+      POSTGRES_PASSWORD: passwordcrm
+    volumes:
+      - db_data_crm:/var/lib/postgresql/data # Corrected volume name
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U usercrm -d crm_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # PostgreSQL для DLQ Processor (для хранения мертвых сообщений)
+  db_dlq_processor:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: dlq_db
+      POSTGRES_USER: userdlq
+      POSTGRES_PASSWORD: passworddlq
+    volumes:
+      - db_data_dlq_processor:/var/lib/postgresql/data # Corrected volume name
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U userdlq -d dlq_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # Имитация 1С
+  service_1c:
+    build:
+      context: .
+      dockerfile: ./services/OneC_Service/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db_1c:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      SERVICE_NAME: "1C"
+      DB_HOST: db_1c
+      DB_NAME: onec_db
+      DB_USER: user1c # Corrected to match db_1c service environment
+      DB_PASSWORD: password1c # Corrected to match db_1c service environment
+      PYTHONPATH: /app
+    command: python /app/services/OneC_Service/main.py
+
+  # Имитация ДМС
+  service_dms:
+    build:
+      context: .
+      dockerfile: ./services/DMS_Service/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db_dms:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      SERVICE_NAME: "DMS"
+      DB_HOST: db_dms
+      DB_NAME: dms_db
+      DB_USER: userdms # Corrected to match db_dms service environment
+      DB_PASSWORD: passworddms # Corrected to match db_dms service environment
+      PYTHONPATH: /app
+    command: python /app/services/DMS_Service/main.py
+
+  # Имитация СРМ
+  service_crm:
+    build:
+      context: .
+      dockerfile: ./services/CRM_Service/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db_crm:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      SERVICE_NAME: "CRM"
+      DB_HOST: db_crm
+      DB_NAME: crm_db
+      DB_USER: usercrm
+      DB_PASSWORD: passwordcrm
+      PYTHONPATH: /app
+    command: python /app/services/CRM_Service/main.py
+
+  # DLQ Processor
+  dlq_processor:
+    build:
+      context: .
+      dockerfile: ./services/dlq_processor/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db_dlq_processor:
+        condition: service_healthy
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      SERVICE_NAME: "DLQ_Processor"
+      DB_HOST: db_dlq_processor
+      DB_NAME: dlq_db
+      DB_USER: userdlq
+      DB_PASSWORD: passworddlq
+      PYTHONPATH: /app
+    command: python /app/services/dlq_processor/main.py
+
+volumes:
+  db_data_1c:
+  db_data_dms:
+  db_data_crm:
+  db_data_dlq_processor:

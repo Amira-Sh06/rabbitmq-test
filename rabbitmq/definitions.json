@@ -1,0 +1,152 @@
+ {
+  "rabbit_version": "3.13.0",
+  "users": [
+    {
+      "name": "guest",
+      "password_hash": "H1/2R4x7T1O6J5s8Q3v4O1m9B5y7A2w3A8p9C0b1Q2q3R4e5F6j7S8o9U0w1Y2a3D4f5G6h7K8l9M0n1",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"]
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "parameters": [],
+  "global_parameters": [],
+  "policies": [],
+  "queues": [
+    {
+      "name": "1c_inbox",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "dlx_exchange",
+        "x-dead-letter-routing-key": "dead_messages.1c",
+        "x-message-ttl": 30000
+      }
+    },
+    {
+      "name": "dms_inbox",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "dlx_exchange",
+        "x-dead-letter-routing-key": "dead_messages.dms",
+        "x-message-ttl": 30000
+      }
+    },
+    {
+      "name": "crm_inbox",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "dlx_exchange",
+        "x-dead-letter-routing-key": "dead_messages.crm",
+        "x-message-ttl": 30000
+      }
+    },
+    {
+      "name": "1c_dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "dms_dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "crm_dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "main_exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "dlx_exchange",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "main_exchange",
+      "destination": "1c_inbox",
+      "destination_type": "queue",
+      "routing_key": "to_1c",
+      "vhost": "/",
+      "arguments": {}
+    },
+    {
+      "source": "main_exchange",
+      "destination": "dms_inbox",
+      "destination_type": "queue",
+      "routing_key": "to_dms",
+      "vhost": "/",
+      "arguments": {}
+    },
+    {
+      "source": "main_exchange",
+      "destination": "crm_inbox",
+      "destination_type": "queue",
+      "routing_key": "to_crm",
+      "vhost": "/",
+      "arguments": {}
+    },
+    {
+      "source": "dlx_exchange",
+      "destination": "1c_dlq",
+      "destination_type": "queue",
+      "routing_key": "dead_messages.1c",
+      "vhost": "/",
+      "arguments": {}
+    },
+    {
+      "source": "dlx_exchange",
+      "destination": "dms_dlq",
+      "destination_type": "queue",
+      "routing_key": "dead_messages.dms",
+      "vhost": "/",
+      "arguments": {}
+    },
+    {
+      "source": "dlx_exchange",
+      "destination": "crm_dlq",
+      "destination_type": "queue",
+      "routing_key": "dead_messages.crm",
+      "vhost": "/",
+      "arguments": {}
+    }
+  ]
+}
